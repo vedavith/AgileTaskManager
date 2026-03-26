@@ -6,12 +6,14 @@ class HealthRoute {
     public router;
     constructor() {
         this.router = Router();
+        this.initializeRoutes();
     } 
 
-    public initializeRoutes() {
+    private initializeRoutes() {
         this.router.get('/', HealthController);
-        return this.router;
     }
 }
 
-export default new HealthRoute().initializeRoutes();
+const healthRoute = new HealthRoute();
+export const path = '/health';
+export default healthRoute.router;
