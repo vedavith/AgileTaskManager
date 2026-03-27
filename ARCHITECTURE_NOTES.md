@@ -79,7 +79,30 @@ Complete user management system with create, read, update, delete (CRUD) operati
 
 ### Endpoints
 
-#### 3.1 Create User
+#### 3.1 Get All Users
+- **Method**: GET
+- **Path**: `/users`
+- **Response**: 
+  - 200 OK (returns array of all users)
+    ```json
+    [
+      {
+        "id": "usr_user_1",
+        "name": "John Doe",
+        "email": "john@example.com",
+        "password": "securePassword123"
+      },
+      {
+        "id": "usr_user_2",
+        "name": "Jane Smith",
+        "email": "jane@example.com",
+        "password": "anotherPassword456"
+      }
+    ]
+    ```
+  - 404 No users found
+
+#### 3.2 Create User
 - **Method**: POST
 - **Path**: `/users`
 - **Request Body**:
@@ -88,35 +111,57 @@ Complete user management system with create, read, update, delete (CRUD) operati
     "id": "usr_unique_id",
     "name": "John Doe",
     "email": "john@example.com",
-    "password": "securePassword123",
-    "createdAt": "2026-03-26T04:30:00.000Z"
-  }
-  ```
-- **Response**: 201 Created
-  ```json
-  {
-    "id": "usr_unique_id",
-    "name": "John Doe",
-    "email": "john@example.com",
     "password": "securePassword123"
   }
   ```
+- **Response**: 
+  - 201 Created
+    ```json
+    {
+      "id": "usr_unique_id",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "password": "securePassword123"
+    }
+    ```
+  - 400 Bad request (malformed JSON)
+  - 422 Validation error (see Validation System section)
 
-#### 3.2 Get User
+#### 3.3 Get User by ID
 - **Method**: GET
 - **Path**: `/users/:id`
-- **Response**: 200 OK (returns user object) or 404 User not found
+- **Response**: 
+  - 200 OK (returns user object)
+  - 404 User not found
 
-#### 3.3 Update User
+#### 3.4 Update User
 - **Method**: PUT
 - **Path**: `/users/:id`
-- **Request Body**: Same as create (all fields)
-- **Response**: 200 OK (returns updated user) or 404 User not found
+- **Request Body**: Same as create (all fields required)
+  ```json
+  {
+    "id": "usr_unique_id",
+    "name": "Updated Name",
+    "email": "newemail@example.com",
+    "password": "newPassword789"
+  }
+  ```
+- **Response**: 
+  - 200 OK (returns updated user object)
+  - 404 User not found
+  - 422 Validation error (see Validation System section)
 
-#### 3.4 Delete User
+#### 3.5 Delete User
 - **Method**: DELETE
 - **Path**: `/users/:id`
-- **Response**: 200 OK with message or 404 User not found
+- **Response**: 
+  - 200 OK with success message
+    ```json
+    {
+      "message": "User deleted successfully"
+    }
+    ```
+  - 404 User not found
 
 ---
 
@@ -135,22 +180,36 @@ All validations are performed in `UserService.validateUser()`:
 
 ### Email Uniqueness Validation
 
-**New in Version 2.0**: Duplicate email detection prevents multiple users from sharing the same email address.
+**Feature**: Duplicate email detection prevents multiple users from sharing the same email address during user creation.
 
 **Implementation**:
-- `isDuplicateEmail()` method in `UserService`
-- Checks during user creation (POST)
-- Checks during user update (PUT) - allows user to keep their own email
+- `isDuplicateEmail(email, excludeId?)` private method in `UserService`
+- Checks during user creation (POST) only
 - Throws `ValidationError` with status 422 if duplicate detected
+- Note: The `excludeId` parameter is available for future use when update validation is needed
 
-**Behavior**:
-- Creating user with duplicate email: **Fails with 422**
-- Updating user to use existing email (of another user): **Fails with 422**
-- Updating user with same email they already have: **Succeeds**
+**Current Behavior**:
+- **Creating user with unique email**: ✅ Succeeds with 201 Created
+- **Creating user with duplicate email**: ❌ Fails with 422 Validation Error ("Email is already in use")
+- **Updating user email to another user's email**: ✅ Currently allowed (no duplicate check on update)
+- **Updating user with their own email**: ✅ Succeeds with 200 OK
+
+**TODO**: Implement duplicate email validation during updates (PUT endpoint)
 
 ---
 
 ## 5. Error Handling
+
+### HTTP Status Codes
+
+| Status | Scenario | Example |
+|--------|----------|---------|
+| 200 | Success (GET, PUT, DELETE) | User retrieved or updated successfully |
+| 201 | Resource created successfully | User created with POST |
+| 400 | Bad request - malformed JSON | Invalid JSON sent in request body |
+| 404 | Resource not found | User ID doesn't exist |
+| 422 | Validation error | Invalid email format, duplicate email, password too short, required field missing |
+| 500 | Internal server error | Unexpected exception during processing |
 
 ### Custom Error Classes
 
@@ -170,12 +229,14 @@ All validations are performed in `UserService.validateUser()`:
 
 ### Error Handling in Controllers
 
-All controllers implement try-catch blocks:
-1. Catch `ValidationError` and return 422 with error details
-2. Catch generic errors and return 500 Internal Server Error
-3. Handle business logic errors (e.g., user not found) with 404
+All controllers that handle user data (create/update) implement try-catch blocks:
 
-**Example**:
+1. **ValidationError**: Caught and returns 422 with error details
+2. **Other exceptions**: Return 500 Internal Server Error
+3. **Not found scenarios**: Return 404 when user doesn't exist
+4. **No results**: Return 404 when no users exist in getAllUsers
+
+**Example from createUser()**:
 ```typescript
 try {
     const createdUser = await UserService.createUser(user);
@@ -186,6 +247,15 @@ try {
     }
     res.status(500).json({ message: 'Internal server error' });
 }
+```
+
+**Example from getAllUsers()**:
+```typescript
+const users = await UserService.getAllUsers();
+if (users.length === 0) {
+    return res.status(404).json({ message: 'No users found' });
+}
+res.status(200).json(users);
 ```
 
 ---

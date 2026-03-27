@@ -15,6 +15,15 @@ class UserController {
             res.status(500).json({ message: 'Internal server error' });
         }
     }
+
+    public getAllUsers = async (req: Request, res: Response) => {
+        const users = await UserService.getAllUsers();
+        if (users.length === 0) {
+            return res.status(404).json({ message: 'No users found' });
+        }
+        res.status(200).json(users);
+    }
+
     public getUser = async (req: Request, res: Response) => {
         const { id } = req.params;
         const user = await UserService.getUserById(id);
@@ -23,6 +32,7 @@ class UserController {
         }
         res.status(200).json(user);
     }
+
     public updateUser = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
@@ -39,6 +49,7 @@ class UserController {
             res.status(500).json({ message: 'Internal server error' });
         }
     }
+
     public deleteUser = async (req: Request, res: Response) => {
         const { id } = req.params;
         const user = await UserService.deleteUser(id);

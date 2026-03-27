@@ -1,4 +1,5 @@
 import UserModel from "../models/User.Model";
+import UserRepository from "../repository/User.Repository";
 import ValidationError from "../errors/Validation.Error";
 
 class UserService {
@@ -9,34 +10,30 @@ class UserService {
     if (this.isDuplicateEmail(user.email)) {
       throw new ValidationError('Email is already in use');
     }
-    this.users.push(user);
+    UserRepository.create(user);
     return user;
   }
 
+  async getAllUsers(): Promise<UserModel[]> {
+    return UserRepository.findAll();
+  }
+
   async getUserById(id: string): Promise<UserModel | undefined> {
-    return this.users.find(user => user.id === id);
+    return UserRepository.findByID(id);
   }
 
   async updateUser(id: string, updatedUser: UserModel): Promise<UserModel | null> {
     this.validateUser(updatedUser);
-    const index = this.users.findIndex(user => user.id === id);
-    if (index !== -1) {
-      this.users[index] = { ...this.users[index], ...updatedUser };
-      return this.users[index];
-    }
-    return null;
+    return UserRepository.update(id, updatedUser);
   }
 
   async deleteUser(id: string): Promise<UserModel | null> {
-    const index = this.users.findIndex(user => user.id === id);
-    if (index !== -1) {
-      return this.users.splice(index, 1)[0];
-    }
-    return null;
+        return UserRepository.delete(id);
   }
 
   private isDuplicateEmail(email: string, excludeId?: string): boolean {
-    return this.users.some(user => 
+    const users = UserRepository.findAll();
+    return users.some(user => 
       user.email === email && (!excludeId || user.id !== excludeId)
     );
   }

@@ -10,6 +10,7 @@ class UserRoute {
     }
 
     private initializeRoutes() {
+        this.router.get('/', UserController.getAllUsers);
         this.router.post('/', UserController.createUser);
         this.router.get('/:id', UserController.getUser);
         this.router.put('/:id', UserController.updateUser);
