@@ -19,13 +19,25 @@ class UserRepository {
         return this.users.find(user => user.email === email);
     }
 
-    update(id: string, updatedUser: any) {
+    update(id: string, safeUpdate: Partial<UserModel>) {
         const index = this.users.findIndex(user => user.id === id);
-        if (index !== -1) {
-            this.users[index] = { ...this.users[index], ...updatedUser };
-            return this.users[index];
+
+        if (index === -1) {
+            return null;
         }
-        return null;
+
+        let existingUser = this.users[index];
+        const updatedUser = {
+            ...existingUser,
+            ...safeUpdate,
+            updatedAt: new Date().toISOString()
+        };
+
+        console.log("::Existing::", existingUser, "::Safe Update::",safeUpdate, "::Result::", updatedUser);
+
+        this.users[index] = updatedUser;
+        return updatedUser;
+
     }
 
     delete(id: string) {
