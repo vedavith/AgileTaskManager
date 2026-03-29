@@ -134,20 +134,24 @@ Complete user management system with create, read, update, delete (CRUD) operati
   - 200 OK (returns user object)
   - 404 User not found
 
-#### 3.4 Update User
-- **Method**: PUT
+#### 3.4 Update User (Partial Update)
+- **Method**: PATCH
 - **Path**: `/users/:id`
-- **Request Body**: Same as create (all fields required)
+- **Request Body**: Partial fields (all fields optional) - only fields to update should be included
   ```json
   {
-    "id": "usr_unique_id",
     "name": "Updated Name",
-    "email": "newemail@example.com",
+    "email": "newemail@example.com"
+  }
+  ```
+  or
+  ```json
+  {
     "password": "newPassword789"
   }
   ```
 - **Response**: 
-  - 200 OK (returns updated user object)
+  - 200 OK (returns updated user object with `updatedAt` timestamp)
   - 404 User not found
   - 422 Validation error (see Validation System section)
 
@@ -169,7 +173,10 @@ Complete user management system with create, read, update, delete (CRUD) operati
 
 ### User Model Validation
 
-All validations are performed in `UserService.validateUser()`:
+Validations are performed in `UserService.validateUser()` with support for both create and update operations.
+
+#### Create Operation (Full Validation)
+All fields required:
 
 | Field | Rules | Error Code |
 |-------|-------|------------|
@@ -178,23 +185,67 @@ All validations are performed in `UserService.validateUser()`:
 | `email` | Required, must be string, valid email format (regex) | 422 |
 | `password` | Required, string, minimum 8 characters | 422 |
 
+#### Update Operation (Partial Validation)
+Only provided fields are validated:
+
+| Field | Rules | Error Code |
+|-------|-------|------------|
+| `name` | If provided, must be string, non-empty | 422 |
+| `email` | If provided, must be string, valid email format (regex) | 422 |
+| `password` | If provided, must be string, minimum 8 characters | 422 |
+
+**Note**: Fields not included in the update request are not validated.
+
 ### Email Uniqueness Validation
 
-**Feature**: Duplicate email detection prevents multiple users from sharing the same email address during user creation.
+**Feature**: Duplicate email detection prevents multiple users from sharing the same email address.
 
 **Implementation**:
 - `isDuplicateEmail(email, excludeId?)` private method in `UserService`
-- Checks during user creation (POST) only
+- Checks during user creation (POST)
+- Checks during user updates (PATCH) before applying the update
+- The `excludeId` parameter allows excluding a specific user from duplicate checks (useful for updates)
 - Throws `ValidationError` with status 422 if duplicate detected
-- Note: The `excludeId` parameter is available for future use when update validation is needed
 
 **Current Behavior**:
 - **Creating user with unique email**: ✅ Succeeds with 201 Created
 - **Creating user with duplicate email**: ❌ Fails with 422 Validation Error ("Email is already in use")
-- **Updating user email to another user's email**: ✅ Currently allowed (no duplicate check on update)
+- **Updating user email to another user's email**: ❌ Fails with 422 Validation Error ("Email is already in use")
 - **Updating user with their own email**: ✅ Succeeds with 200 OK
+- **Updating user with new unique email**: ✅ Succeeds with 200 OK
 
-**TODO**: Implement duplicate email validation during updates (PUT endpoint)
+### Safe Update Mechanism
+
+**Purpose**: Protect the database from unintended field modifications by only allowing whitelisted fields to be updated.
+
+**Implementation**:
+- `updateUser()` in `UserService` uses a whitelist approach
+- Only `name`, `email`, and `password` fields are allowed for updates
+- Unknown fields in the request are silently ignored
+- The `safeUpdate` object is built by checking each field individually
+
+**Example**:
+```typescript
+// Request payload
+{
+  "name": "John Updated",
+  "email": "john@newemail.com",
+  "createdAt": "2026-01-01T00:00:00Z"  // Ignored - not whitelisted
+}
+
+// safeUpdate built by validateUser:
+{
+  "name": "John Updated",
+  "email": "john@newemail.com"
+}
+
+// createdAt is preserved from original, updatedAt is set to current timestamp
+```
+
+**Security Benefits**:
+- Prevents clients from modifying `id`, `createdAt`, or `updatedAt` fields
+- Only allows modification of user-controllable data
+- `updatedAt` is always set server-side to current timestamp (cannot be manipulated)
 
 ---
 
@@ -204,7 +255,7 @@ All validations are performed in `UserService.validateUser()`:
 
 | Status | Scenario | Example |
 |--------|----------|---------|
-| 200 | Success (GET, PUT, DELETE) | User retrieved or updated successfully |
+| 200 | Success (GET, PATCH, DELETE) | User retrieved, updated, or deleted successfully |
 | 201 | Resource created successfully | User created with POST |
 | 400 | Bad request - malformed JSON | Invalid JSON sent in request body |
 | 404 | Resource not found | User ID doesn't exist |
@@ -282,9 +333,15 @@ class UserModel {
     name: string;            // User's full name
     email: string;           // Unique email address
     password: string;        // Currently stored as plain text (TODO: hash)
-    createdAt?: string;      // ISO timestamp of creation
+    createdAt: string;       // ISO timestamp of creation
+    updatedAt?: string;      // ISO timestamp of last update (optional)
 }
 ```
+
+**Key Changes**:
+- `updatedAt` field automatically set on every user update with current ISO timestamp
+- `createdAt` is set during user creation
+- Both timestamps follow ISO 8601 format for consistency
 
 **Security Note**: Passwords are stored as plain text. In production, implement bcrypt or similar hashing.
 

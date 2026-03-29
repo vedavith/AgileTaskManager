@@ -33,11 +33,8 @@ class UserRepository {
             updatedAt: new Date().toISOString()
         };
 
-        console.log("::Existing::", existingUser, "::Safe Update::",safeUpdate, "::Result::", updatedUser);
-
         this.users[index] = updatedUser;
         return updatedUser;
-
     }
 
     delete(id: string) {
