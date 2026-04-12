@@ -45,6 +45,20 @@ class UserService {
     return UserRepository.hardDelete(id);
   }
 
+  async restoreUser(id: string): Promise<UserModel | null> {
+    const user = UserRepository.findByID(id); // include deleted
+
+    if (!user) {
+      return null;
+    }
+
+    if (!user.isDeleted) {
+      throw new Error("User is already active");
+    }
+
+    return UserRepository.restore(id);
+  }
+
   async updateUser(id: string, updatedUser: any): Promise<UserModel | null> {
     const safeUpdate: any = {};
 

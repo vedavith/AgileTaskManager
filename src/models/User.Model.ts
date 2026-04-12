@@ -7,7 +7,7 @@ class UserModel {
     isDeleted: boolean;
     createdAt: string;
     updatedAt: string | undefined;
-    deletedAt: string | undefined;
+    deletedAt: string | null | undefined;
 
     constructor(
         id: string,
@@ -17,7 +17,7 @@ class UserModel {
         isDeleted: boolean = false,
         createdAt?: string,
         updatedAt?: string,
-        deletedAt?: string) {
+        deletedAt?: string | null) {
         this.id = id;
         this.name = name;
         this.email = email;

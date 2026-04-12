@@ -121,6 +121,51 @@ class UserController {
             });
         }
     };
+
+    public restoreUser = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+
+            const user = await UserService.restoreUser(id);
+
+            if (!user) {
+                return res.status(404).json({
+                    error: {
+                        message: "User not found",
+                        code: "NOT_FOUND"
+                    }
+                });
+            }
+
+            return res.status(200).json({
+                data: {
+                    id: user.id,
+                    isDeleted: user.isDeleted
+                },
+                message: "User restored successfully"
+            });
+
+        } catch (error: unknown) {
+
+            if (error instanceof Error) {
+                if (error.message.includes("already active")) {
+                    return res.status(400).json({
+                        error: {
+                            message: error.message,
+                            code: "INVALID_STATE"
+                        }
+                    });
+                }
+            }
+
+            return res.status(500).json({
+                error: {
+                    message: "Internal server error",
+                    code: "INTERNAL_ERROR"
+                }
+            });
+        }
+    };
 }
 
 export default new UserController();

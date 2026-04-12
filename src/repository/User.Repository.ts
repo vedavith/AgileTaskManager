@@ -63,6 +63,22 @@ class UserRepository {
         }
         return null;
     }
+
+    restore(id: string): UserModel | null {
+        const index = this.users.findIndex(user => user.id === id);
+
+        if (index === -1) return null;
+
+        const user = this.users[index];
+
+        this.users[index] = {
+            ...user,
+            isDeleted: false,
+            deletedAt: null
+        };
+
+        return this.users[index];
+    }
 }
 
 export default new UserRepository();
