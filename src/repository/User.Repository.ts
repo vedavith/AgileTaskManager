@@ -7,8 +7,12 @@ class UserRepository {
         this.users.push(user);
     }
 
-    findAll() {
-        return this.users;
+    findAll(includeDeleted: boolean): UserModel[] {
+        const users = includeDeleted
+            ? this.users
+            : this.users.filter(user => !user.isDeleted);
+
+        return [...users];
     }
 
     findByID(id: string) {
@@ -37,7 +41,22 @@ class UserRepository {
         return updatedUser;
     }
 
-    delete(id: string) {
+    softDelete(id: string) {
+        const index = this.users.findIndex(user => user.id === id);
+        if (index !== -1) {
+            const user = this.users[index];
+            this.users[index] = {
+                ...user,
+                isDeleted: true,
+                deletedAt: new Date().toISOString()
+            };
+
+            return this.users[index];
+        }
+        return null;
+    }
+
+    hardDelete(id: string) {
         const index = this.users.findIndex(user => user.id === id);
         if (index !== -1) {
             return this.users.splice(index, 1)[0];

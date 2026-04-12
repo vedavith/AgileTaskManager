@@ -3,8 +3,6 @@ import UserRepository from "../repository/User.Repository";
 import ValidationError from "../errors/Validation.Error";
 
 class UserService {
-  private users: UserModel[] = [];
-
   async createUser(user: UserModel): Promise<UserModel> {
     this.validateUser(user, false);
     if (this.isDuplicateEmail(user.email)) {
@@ -14,12 +12,37 @@ class UserService {
     return user;
   }
 
-  async getAllUsers(): Promise<UserModel[]> {
-    return UserRepository.findAll();
+  async getAllUsers(includeDeleted: boolean): Promise<UserModel[]> {
+    return UserRepository.findAll(includeDeleted);
   }
 
   async getUserById(id: string): Promise<UserModel | undefined> {
     return UserRepository.findByID(id);
+  }
+
+  async deleteUser(id: string): Promise<UserModel | null> {
+    const user = UserRepository.findByID(id);
+    if (!user) {
+      return null;
+    }
+
+    if (user.isDeleted) {
+      return user;
+    }
+
+    return UserRepository.softDelete(id);
+  }
+
+  async permanentlyDeleteUser(id: string): Promise<UserModel | null> {
+    const user = UserRepository.findByID(id);
+
+    if (!user) return null;
+
+    if (!user.isDeleted) {
+      throw new Error("User must be soft deleted before permanent deletion");
+    }
+
+    return UserRepository.hardDelete(id);
   }
 
   async updateUser(id: string, updatedUser: any): Promise<UserModel | null> {
@@ -37,12 +60,8 @@ class UserService {
     return UserRepository.update(id, safeUpdate);
   }
 
-  async deleteUser(id: string): Promise<UserModel | null> {
-    return UserRepository.delete(id);
-  }
-
   private isDuplicateEmail(email: string, excludeId?: string): boolean {
-    const users = UserRepository.findAll();
+    const users = UserRepository.findAll(false);
     return users.some(user =>
         user.email === email && (!excludeId || user.id !== excludeId)
     );

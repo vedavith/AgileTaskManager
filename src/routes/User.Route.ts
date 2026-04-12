@@ -14,7 +14,8 @@ class UserRoute {
         this.router.post('/', UserController.createUser);
         this.router.get('/:id', UserController.getUser);
         this.router.patch('/:id', UserController.updateUser);
-        this.router.delete('/:id', UserController.deleteUser);  
+        this.router.delete('/:id', UserController.deleteUser);
+        this.router.delete("/:id/permanent", UserController.permanentlyDeleteUser);
     };
 }
 
